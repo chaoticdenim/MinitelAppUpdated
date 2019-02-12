@@ -6,13 +6,11 @@ import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
-import android.net.NetworkCapabilities;
-import android.net.NetworkRequest;
 import android.os.Build;
+import android.os.Bundle;
 import android.security.KeyPairGeneratorSpec;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -24,11 +22,11 @@ import android.widget.Toast;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.PrivateKey;
-import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -58,20 +56,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
-
-
         keyAliases = new ArrayList<>();
 
         try {
             keyStore = KeyStore.getInstance("AndroidKeyStore");
             keyStore.load(null);
 
+        } catch (Exception ignored) {
         }
-        catch(Exception e) {}
 
         refreshKeys();
-
 
         final ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -80,8 +74,8 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("reseau debug", "Seting process network to " + net);
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         cm.bindProcessToNetwork(net);
-                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        cm.setProcessDefaultNetwork(net);
+                    } else {
+                        ConnectivityManager.setProcessDefaultNetwork(net);
                     }
                 }
             }
@@ -89,36 +83,35 @@ public class MainActivity extends AppCompatActivity {
             cm.setNetworkPreference(ConnectivityManager.TYPE_WIFI);
         }
 
-
-
-
         setContentView(R.layout.activity_main);
-        button = (Button) findViewById(R.id.connexion);
-        username = (EditText) findViewById(R.id.username);
-        password = (EditText) findViewById(R.id.input_password);
-        storeData = (CheckBox) findViewById(R.id.saveData);
+        button = findViewById(R.id.connexion);
+        username = findViewById(R.id.username);
+        password = findViewById(R.id.input_password);
+        storeData = findViewById(R.id.saveData);
 
 
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
         String usernameStr = settings.getString("username", "");
-        if(usernameStr != ""){ //l'utilisateur a enregistré ses ids;
+        assert usernameStr != null;
+        if (usernameStr.equals("")) { //l'utilisateur a enregistré ses ids;
             username.setText(usernameStr);
             password.setText(decryptString(keyAliases.get(0), settings.getString("password","")));
             storeData.setChecked(true);
+        } else {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setMessage("En utilisant cette application, vous acceptez les conditions d'utilisation du réseau de la résidence.")
+                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            dialog.cancel();
+                        }
+                    });
+            AlertDialog alert = builder.create();
+            alert.show();
         }
 
         DisableSsl.disableSSLCertificateChecking();
         final MainActivity temp = this;
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("En utilisant cette application, vous acceptez les conditions d'utilisation du réseau de la résidence")
-                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        dialog.cancel();
-                    }
-                });
-        AlertDialog alert = builder.create();
-        alert.show();
 
         button.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -147,11 +140,11 @@ public class MainActivity extends AppCompatActivity {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             for (Network net : cm.getAllNetworks()) {
                 if (cm.getNetworkInfo(net).getType() == ConnectivityManager.TYPE_WIFI) {
-                    Log.e("reseau debug", "Seting process network to " + net);
+                    Log.e("réseau debug", "Setting process network to " + net);
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         cm.bindProcessToNetwork(net);
-                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        cm.setProcessDefaultNetwork(net);
+                    } else {
+                        ConnectivityManager.setProcessDefaultNetwork(net);
                     }
                 }
             }
@@ -164,8 +157,8 @@ public class MainActivity extends AppCompatActivity {
     public void onLoginSuccess(){
         progressDialog.dismiss();
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("La connexion a reussit")
-                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+        builder.setMessage("Vous êtes connecté(e).")
+                .setPositiveButton("Merci Minitel", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         dialog.cancel();
                     }
@@ -193,7 +186,7 @@ public class MainActivity extends AppCompatActivity {
                 editor.putString("username", username.getText().toString());
                 editor.putString("password", encryptString(keyAliases.get(0), password.getText().toString()));
 
-                editor.commit();
+                editor.apply();
 
 
             }
@@ -208,8 +201,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void onLoginFail(){
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("La connexion a echoué")
-                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+        builder.setMessage("La connexion a echoué.")
+                .setPositiveButton("FAIT CHIER MERDE", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
                         dialog.cancel();
                     }
@@ -227,15 +220,12 @@ public class MainActivity extends AppCompatActivity {
         String session;
         int debutSession;
 
-
         debutSession = html.indexOf("value=\"id=");
         session = html.substring(debutSession + 7, html.indexOf("\">", debutSession));
-
 
         Log.e("session id",session);
         String[] arrData = {session, "accepted", "J'accepte"};
         String[] arrKey = {"session", "read", "action"};
-
 
         new AcceptCond(this,arrData, arrKey, "https://fw-cgcp.emse.fr/auth/disclaimer.html").execute("");
 
@@ -275,7 +265,8 @@ public class MainActivity extends AppCompatActivity {
             while (aliases.hasMoreElements()) {
                 keyAliases.add(aliases.nextElement());
             }
-        }catch (Exception e) {}
+        } catch (Exception ignored) {
+        }
 
 
     }
@@ -297,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             CipherOutputStream cipherOutputStream = new CipherOutputStream(
                     outputStream, inCipher);
-            cipherOutputStream.write(initialText.getBytes("UTF-8"));
+            cipherOutputStream.write(initialText.getBytes(StandardCharsets.UTF_8));
             cipherOutputStream.close();
 
             byte [] vals = outputStream.toByteArray();
@@ -313,7 +304,7 @@ public class MainActivity extends AppCompatActivity {
     public String decryptString(String alias, String cipherText) {
         try {
             KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry)keyStore.getEntry(alias, null);
-            PrivateKey privateKey = (PrivateKey) privateKeyEntry.getPrivateKey();
+            PrivateKey privateKey = privateKeyEntry.getPrivateKey();
 
             Cipher output = Cipher.getInstance("RSA/ECB/PKCS1Padding");
 
@@ -329,11 +320,10 @@ public class MainActivity extends AppCompatActivity {
 
             byte[] bytes = new byte[values.size()];
             for(int i = 0; i < bytes.length; i++) {
-                bytes[i] = values.get(i).byteValue();
+                bytes[i] = values.get(i);
             }
 
-            String finalText = new String(bytes, 0, bytes.length, "UTF-8");
-            return finalText;
+            return new String(bytes, 0, bytes.length, StandardCharsets.UTF_8);
 
         } catch (Exception e) {
             Toast.makeText(this, "Exception " + e.getMessage() + " occured", Toast.LENGTH_LONG).show();
