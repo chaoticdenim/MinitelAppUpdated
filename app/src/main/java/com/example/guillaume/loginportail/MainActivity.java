@@ -92,8 +92,7 @@ public class MainActivity extends AppCompatActivity {
 
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
         String usernameStr = settings.getString("username", "");
-        assert usernameStr != null;
-        if (usernameStr.equals("")) { //l'utilisateur a enregistré ses ids;
+        if (!usernameStr.equals("")) { //l'utilisateur a enregistré ses ids;
             username.setText(usernameStr);
             password.setText(decryptString(keyAliases.get(0), settings.getString("password","")));
             storeData.setChecked(true);
