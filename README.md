@@ -1,3 +1,4 @@
-#Application mobile minitel remise à jour.
+# Application mobile minitel remise à jour.
 
-##Utilisation : connecte toi lol. Si ça marche pas, c'est de __ta faute__.
+## Utilisation
+connecte toi lol. Si ça marche pas, c'est de __ta faute__.
