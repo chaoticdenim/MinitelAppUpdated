@@ -2,4 +2,8 @@
     <string name="app_name">Login Portail</string>
 
     <string name="action_settings">Settings</string>
+    <string name="usr_text">prénom.nom</string>
+    <string name="pass_text">Mot de passe</string>
+    <string name="button_text">SE CONNECTER</string>
+    <string name="checkbox_txt">Se souvenir de moi</string>
 </resources>
